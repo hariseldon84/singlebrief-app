@@ -8,11 +8,14 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { NewBriefModal } from '@/components/briefs/NewBriefModal';
+import { BriefDetailModal } from '@/components/briefs/BriefDetailModal';
 
 interface Brief {
   id: string;
   title: string;
+  prompt: string;
   status: string;
+  recipients: string[];
   response_count: number;
   total_recipients: number;
   created_at: string;
@@ -28,6 +31,8 @@ export default function Briefs() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
   const [showNewBriefModal, setShowNewBriefModal] = useState(false);
+  const [selectedBrief, setSelectedBrief] = useState<Brief | null>(null);
+  const [showBriefDetail, setShowBriefDetail] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -196,7 +201,10 @@ export default function Briefs() {
             <Card 
               key={brief.id} 
               className="hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => navigate(`/briefs/${brief.id}`)}
+              onClick={() => {
+                setSelectedBrief(brief);
+                setShowBriefDetail(true);
+              }}
             >
               <CardHeader>
                 <div className="flex items-start justify-between">
@@ -236,6 +244,13 @@ export default function Briefs() {
         open={showNewBriefModal}
         onOpenChange={setShowNewBriefModal}
         onSuccess={fetchBriefs}
+      />
+      
+      <BriefDetailModal
+        brief={selectedBrief}
+        open={showBriefDetail}
+        onOpenChange={setShowBriefDetail}
+        onDeleted={fetchBriefs}
       />
     </div>
   );

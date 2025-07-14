@@ -6,11 +6,14 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { NewBriefModal } from '@/components/briefs/NewBriefModal';
+import { BriefDetailModal } from '@/components/briefs/BriefDetailModal';
 
 interface Brief {
   id: string;
   title: string;
+  prompt: string;
   status: string;
+  recipients: string[];
   response_count: number;
   total_recipients: number;
   created_at: string;
@@ -23,6 +26,8 @@ export default function Dashboard() {
   const [briefs, setBriefs] = useState<Brief[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewBriefModal, setShowNewBriefModal] = useState(false);
+  const [selectedBrief, setSelectedBrief] = useState<Brief | null>(null);
+  const [showBriefDetail, setShowBriefDetail] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -156,7 +161,10 @@ export default function Dashboard() {
                 <div
                   key={brief.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                  onClick={() => navigate(`/briefs/${brief.id}`)}
+                  onClick={() => {
+                    setSelectedBrief(brief);
+                    setShowBriefDetail(true);
+                  }}
                 >
                   <div className="flex items-center space-x-3">
                     <div className={`${getStatusColor(brief.status)}`}>
@@ -188,6 +196,13 @@ export default function Dashboard() {
         open={showNewBriefModal}
         onOpenChange={setShowNewBriefModal}
         onSuccess={fetchRecentBriefs}
+      />
+      
+      <BriefDetailModal
+        brief={selectedBrief}
+        open={showBriefDetail}
+        onOpenChange={setShowBriefDetail}
+        onDeleted={fetchRecentBriefs}
       />
     </div>
   );
