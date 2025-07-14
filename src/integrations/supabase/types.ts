@@ -102,6 +102,9 @@ export type Database = {
           email: string
           id: string
           name: string
+          notification_preferences: Json | null
+          two_factor_enabled: boolean | null
+          two_factor_secret: string | null
           updated_at: string
           user_id: string
         }
@@ -111,6 +114,9 @@ export type Database = {
           email: string
           id?: string
           name: string
+          notification_preferences?: Json | null
+          two_factor_enabled?: boolean | null
+          two_factor_secret?: string | null
           updated_at?: string
           user_id: string
         }
@@ -120,6 +126,9 @@ export type Database = {
           email?: string
           id?: string
           name?: string
+          notification_preferences?: Json | null
+          two_factor_enabled?: boolean | null
+          two_factor_secret?: string | null
           updated_at?: string
           user_id?: string
         }
