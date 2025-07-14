@@ -14,7 +14,194 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      brief_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_public: boolean
+          is_system: boolean
+          name: string
+          prompt: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          is_system?: boolean
+          name: string
+          prompt: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          is_system?: boolean
+          name?: string
+          prompt?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      briefs: {
+        Row: {
+          created_at: string
+          deadline: string | null
+          id: string
+          prompt: string
+          recipients: string[]
+          response_count: number
+          status: string
+          synthesis_result: Json | null
+          title: string
+          total_recipients: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          prompt: string
+          recipients: string[]
+          response_count?: number
+          status?: string
+          synthesis_result?: Json | null
+          title: string
+          total_recipients?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          prompt?: string
+          recipients?: string[]
+          response_count?: number
+          status?: string
+          synthesis_result?: Json | null
+          title?: string
+          total_recipients?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      responses: {
+        Row: {
+          brief_id: string
+          completed_at: string | null
+          conversation: Json
+          created_at: string
+          id: string
+          recipient_email: string
+          secure_token: string
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          brief_id: string
+          completed_at?: string | null
+          conversation?: Json
+          created_at?: string
+          id?: string
+          recipient_email: string
+          secure_token: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          brief_id?: string
+          completed_at?: string | null
+          conversation?: Json
+          created_at?: string
+          id?: string
+          recipient_email?: string
+          secure_token?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "responses_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: false
+            referencedRelation: "briefs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          members: string[]
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          members?: string[]
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          members?: string[]
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

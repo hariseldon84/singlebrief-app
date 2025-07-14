@@ -1,0 +1,398 @@
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Plus, Users, Edit, Trash2, UserCheck } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+
+interface Team {
+  id: string;
+  name: string;
+  description?: string;
+  members: string[];
+  created_at: string;
+}
+
+export default function Teams() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    members: '',
+  });
+
+  useEffect(() => {
+    if (user) {
+      fetchTeams();
+    }
+  }, [user]);
+
+  const fetchTeams = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('teams')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setTeams(data || []);
+    } catch (error) {
+      console.error('Error fetching teams:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const membersArray = formData.members
+      .split(',')
+      .map(email => email.trim())
+      .filter(email => email.length > 0);
+
+    try {
+      if (editingTeam) {
+        const { error } = await supabase
+          .from('teams')
+          .update({
+            name: formData.name,
+            description: formData.description,
+            members: membersArray,
+          })
+          .eq('id', editingTeam.id);
+
+        if (error) throw error;
+        
+        toast({
+          title: "Team updated",
+          description: "Your team has been updated successfully.",
+        });
+      } else {
+        const { error } = await supabase
+          .from('teams')
+          .insert({
+            user_id: user?.id,
+            name: formData.name,
+            description: formData.description,
+            members: membersArray,
+          });
+
+        if (error) throw error;
+        
+        toast({
+          title: "Team created",
+          description: "Your new team has been created successfully.",
+        });
+      }
+
+      setFormData({ name: '', description: '', members: '' });
+      setIsCreateDialogOpen(false);
+      setEditingTeam(null);
+      fetchTeams();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEdit = (team: Team) => {
+    setEditingTeam(team);
+    setFormData({
+      name: team.name,
+      description: team.description || '',
+      members: team.members.join(', '),
+    });
+    setIsCreateDialogOpen(true);
+  };
+
+  const handleDelete = async (teamId: string) => {
+    if (!confirm('Are you sure you want to delete this team?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('teams')
+        .delete()
+        .eq('id', teamId);
+
+      if (error) throw error;
+      
+      toast({
+        title: "Team deleted",
+        description: "The team has been deleted successfully.",
+      });
+      
+      fetchTeams();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({ name: '', description: '', members: '' });
+    setEditingTeam(null);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-sora text-3xl font-bold">Teams</h1>
+          <p className="text-muted-foreground font-inter mt-2">
+            Manage your team groups for easier brief distribution
+          </p>
+        </div>
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button 
+              onClick={resetForm}
+              className="bg-accent hover:bg-accent/90 text-accent-foreground font-inter"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Team
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="font-sora">
+                {editingTeam ? 'Edit Team' : 'Create New Team'}
+              </DialogTitle>
+              <DialogDescription className="font-inter">
+                {editingTeam 
+                  ? 'Update your team details and member list.'
+                  : 'Create a new team to organize your brief recipients.'
+                }
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name" className="font-inter">Team Name</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                  className="font-inter"
+                  placeholder="e.g., Product Team, Marketing Team"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="description" className="font-inter">Description (Optional)</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="font-inter"
+                  placeholder="Brief description of this team"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="members" className="font-inter">Team Members</Label>
+                <Textarea
+                  id="members"
+                  value={formData.members}
+                  onChange={(e) => setFormData({ ...formData, members: e.target.value })}
+                  required
+                  className="font-inter"
+                  placeholder="Enter email addresses separated by commas&#10;e.g., john@company.com, jane@company.com"
+                />
+                <p className="text-sm text-muted-foreground font-inter">
+                  Separate email addresses with commas
+                </p>
+              </div>
+              
+              <div className="flex justify-end space-x-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsCreateDialogOpen(false)}
+                  className="font-inter"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit"
+                  className="bg-accent hover:bg-accent/90 text-accent-foreground font-inter"
+                >
+                  {editingTeam ? 'Update Team' : 'Create Team'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
+        </div>
+      ) : teams.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-12">
+            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="font-sora text-lg font-semibold mb-2">No teams yet</h3>
+            <p className="text-muted-foreground font-inter mb-4">
+              Create your first team to organize your brief recipients
+            </p>
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  onClick={resetForm}
+                  className="bg-accent hover:bg-accent/90 text-accent-foreground font-inter"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create First Team
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle className="font-sora">Create New Team</DialogTitle>
+                  <DialogDescription className="font-inter">
+                    Create a new team to organize your brief recipients.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="font-inter">Team Name</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
+                      className="font-inter"
+                      placeholder="e.g., Product Team, Marketing Team"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="description" className="font-inter">Description (Optional)</Label>
+                    <Textarea
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="font-inter"
+                      placeholder="Brief description of this team"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="members" className="font-inter">Team Members</Label>
+                    <Textarea
+                      id="members"
+                      value={formData.members}
+                      onChange={(e) => setFormData({ ...formData, members: e.target.value })}
+                      required
+                      className="font-inter"
+                      placeholder="Enter email addresses separated by commas&#10;e.g., john@company.com, jane@company.com"
+                    />
+                    <p className="text-sm text-muted-foreground font-inter">
+                      Separate email addresses with commas
+                    </p>
+                  </div>
+                  
+                  <div className="flex justify-end space-x-2">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => setIsCreateDialogOpen(false)}
+                      className="font-inter"
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      type="submit"
+                      className="bg-accent hover:bg-accent/90 text-accent-foreground font-inter"
+                    >
+                      Create Team
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4">
+          {teams.map((team) => (
+            <Card key={team.id}>
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-3">
+                    <Users className="h-5 w-5 text-accent" />
+                    <div>
+                      <CardTitle className="font-sora">{team.name}</CardTitle>
+                      {team.description && (
+                        <CardDescription className="font-inter mt-1">
+                          {team.description}
+                        </CardDescription>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(team)}
+                      className="font-inter"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDelete(team.id)}
+                      className="font-inter text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground font-inter">
+                  <UserCheck className="h-4 w-4" />
+                  <span>{team.members.length} members</span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {team.members.slice(0, 3).map((email) => (
+                    <span
+                      key={email}
+                      className="inline-block bg-muted text-muted-foreground px-2 py-1 rounded text-xs font-inter"
+                    >
+                      {email}
+                    </span>
+                  ))}
+                  {team.members.length > 3 && (
+                    <span className="inline-block bg-muted text-muted-foreground px-2 py-1 rounded text-xs font-inter">
+                      +{team.members.length - 3} more
+                    </span>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
