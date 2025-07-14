@@ -18,6 +18,10 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				sora: ['Sora', 'sans-serif'],
+				inter: ['Inter', 'sans-serif'],
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
@@ -61,6 +65,23 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				brand: {
+					'dark-blue': 'hsl(var(--brand-dark-blue))',
+					'orange': 'hsl(var(--brand-orange))',
+					'white': 'hsl(var(--brand-white))',
+					'gray': {
+						50: 'hsl(var(--brand-gray-50))',
+						100: 'hsl(var(--brand-gray-100))',
+						200: 'hsl(var(--brand-gray-200))',
+						300: 'hsl(var(--brand-gray-300))',
+						400: 'hsl(var(--brand-gray-400))',
+						500: 'hsl(var(--brand-gray-500))',
+						600: 'hsl(var(--brand-gray-600))',
+						700: 'hsl(var(--brand-gray-700))',
+						800: 'hsl(var(--brand-gray-800))',
+						900: 'hsl(var(--brand-gray-900))',
+					}
 				}
 			},
 			borderRadius: {
