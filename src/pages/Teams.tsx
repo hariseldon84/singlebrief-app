@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Users, Edit, Trash2, UserCheck } from 'lucide-react';
+import { Plus, Users, Edit, Trash2, UserCheck, Search, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -25,6 +25,8 @@ export default function Teams() {
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dateFilter, setDateFilter] = useState('all');
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -151,6 +153,34 @@ export default function Teams() {
     setEditingTeam(null);
   };
 
+  const filteredTeams = teams.filter(team => {
+    const matchesSearch = 
+      team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      team.members.some(email => email.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    let matchesDate = true;
+    if (dateFilter !== 'all') {
+      const teamDate = new Date(team.created_at);
+      const now = new Date();
+      
+      switch (dateFilter) {
+        case 'today':
+          matchesDate = teamDate.toDateString() === now.toDateString();
+          break;
+        case 'week':
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          matchesDate = teamDate >= weekAgo;
+          break;
+        case 'month':
+          const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          matchesDate = teamDate >= monthAgo;
+          break;
+      }
+    }
+    
+    return matchesSearch && matchesDate;
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -242,28 +272,57 @@ export default function Teams() {
         </Dialog>
       </div>
 
+      <div className="flex gap-4 items-center">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="Search teams or emails..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 font-inter"
+          />
+        </div>
+        
+        <select
+          value={dateFilter}
+          onChange={(e) => setDateFilter(e.target.value)}
+          className="px-3 py-2 border border-input bg-background rounded-md text-sm font-inter"
+        >
+          <option value="all">All Dates</option>
+          <option value="today">Today</option>
+          <option value="week">This Week</option>
+          <option value="month">This Month</option>
+        </select>
+      </div>
+
       {loading ? (
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
         </div>
-      ) : teams.length === 0 ? (
+      ) : filteredTeams.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12">
             <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="font-sora text-lg font-semibold mb-2">No teams yet</h3>
+            <h3 className="font-sora text-lg font-semibold mb-2">
+              {searchTerm || dateFilter !== 'all' ? 'No matching teams' : 'No teams yet'}
+            </h3>
             <p className="text-muted-foreground font-inter mb-4">
-              Create your first team to organize your brief recipients
+              {searchTerm || dateFilter !== 'all' 
+                ? 'Try adjusting your search or filters'
+                : 'Create your first team to organize your brief recipients'
+              }
             </p>
-            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-              <DialogTrigger asChild>
-                <Button 
-                  onClick={resetForm}
-                  className="bg-accent hover:bg-accent/90 text-accent-foreground font-inter"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create First Team
-                </Button>
-              </DialogTrigger>
+            {!searchTerm && dateFilter === 'all' && (
+              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button 
+                    onClick={resetForm}
+                    className="bg-accent hover:bg-accent/90 text-accent-foreground font-inter"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create First Team
+                  </Button>
+                </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle className="font-sora">Create New Team</DialogTitle>
@@ -329,11 +388,12 @@ export default function Teams() {
                 </form>
               </DialogContent>
             </Dialog>
+            )}
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4">
-          {teams.map((team) => (
+          {filteredTeams.map((team) => (
             <Card key={team.id}>
               <CardHeader>
                 <div className="flex items-start justify-between">

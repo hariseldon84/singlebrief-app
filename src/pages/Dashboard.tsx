@@ -5,6 +5,7 @@ import { Plus, FileText, Users, Clock, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { NewBriefModal } from '@/components/briefs/NewBriefModal';
 
 interface Brief {
   id: string;
@@ -21,6 +22,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [briefs, setBriefs] = useState<Brief[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showNewBriefModal, setShowNewBriefModal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -80,7 +82,7 @@ export default function Dashboard() {
           </p>
         </div>
         <Button 
-          onClick={() => navigate('/briefs/new')}
+          onClick={() => setShowNewBriefModal(true)}
           className="bg-accent hover:bg-accent/90 text-accent-foreground font-inter"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -141,7 +143,7 @@ export default function Dashboard() {
               <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground font-inter">No briefs yet. Create your first brief to get started!</p>
               <Button 
-                onClick={() => navigate('/briefs/new')}
+                onClick={() => setShowNewBriefModal(true)}
                 className="mt-4 bg-accent hover:bg-accent/90 text-accent-foreground font-inter"
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -181,6 +183,12 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
+
+      <NewBriefModal 
+        open={showNewBriefModal}
+        onOpenChange={setShowNewBriefModal}
+        onSuccess={fetchRecentBriefs}
+      />
     </div>
   );
 }

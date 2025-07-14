@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, FileStack, Edit, Trash2, Crown, Globe } from 'lucide-react';
+import { Plus, FileStack, Edit, Trash2, Crown, Globe, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -28,6 +28,7 @@ export default function Templates() {
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -107,12 +108,23 @@ export default function Templates() {
   };
 
   const handleEdit = (template: Template) => {
-    setEditingTemplate(template);
-    setFormData({
-      name: template.name,
-      description: template.description || '',
-      prompt: template.prompt,
-    });
+    if (template.is_system) {
+      // For system templates, create a copy
+      setEditingTemplate(null);
+      setFormData({
+        name: `${template.name} (Copy)`,
+        description: template.description || '',
+        prompt: template.prompt,
+      });
+    } else {
+      // For user templates, edit directly
+      setEditingTemplate(template);
+      setFormData({
+        name: template.name,
+        description: template.description || '',
+        prompt: template.prompt,
+      });
+    }
     setIsCreateDialogOpen(true);
   };
 
@@ -147,8 +159,14 @@ export default function Templates() {
     setEditingTemplate(null);
   };
 
-  const userTemplates = templates.filter(t => !t.is_system);
-  const systemTemplates = templates.filter(t => t.is_system);
+  const filteredTemplates = templates.filter(template => 
+    template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (template.description && template.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    template.prompt.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  const userTemplates = filteredTemplates.filter(t => !t.is_system);
+  const systemTemplates = filteredTemplates.filter(t => t.is_system);
 
   return (
     <div className="space-y-6">
@@ -241,6 +259,16 @@ export default function Templates() {
         </Dialog>
       </div>
 
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+        <Input
+          placeholder="Search templates..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-10 font-inter"
+        />
+      </div>
+
       {loading ? (
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
@@ -270,10 +298,21 @@ export default function Templates() {
                           )}
                         </div>
                       </div>
-                      <Badge variant="outline" className="font-inter">
-                        <Crown className="h-3 w-3 mr-1" />
-                        System
-                      </Badge>
+                      <div className="flex items-center space-x-2">
+                        <Badge variant="outline" className="font-inter">
+                          <Crown className="h-3 w-3 mr-1" />
+                          System
+                        </Badge>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(template)}
+                          className="font-inter"
+                          title="Copy system template"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>

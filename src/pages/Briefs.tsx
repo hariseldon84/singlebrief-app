@@ -3,10 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Filter, FileText, Clock, CheckCircle, Archive } from 'lucide-react';
+import { Plus, Search, Filter, FileText, Clock, CheckCircle, Archive, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { NewBriefModal } from '@/components/briefs/NewBriefModal';
 
 interface Brief {
   id: string;
@@ -25,6 +26,8 @@ export default function Briefs() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('all');
+  const [showNewBriefModal, setShowNewBriefModal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -52,7 +55,28 @@ export default function Briefs() {
   const filteredBriefs = briefs.filter(brief => {
     const matchesSearch = brief.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || brief.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    
+    let matchesDate = true;
+    if (dateFilter !== 'all') {
+      const briefDate = new Date(brief.created_at);
+      const now = new Date();
+      
+      switch (dateFilter) {
+        case 'today':
+          matchesDate = briefDate.toDateString() === now.toDateString();
+          break;
+        case 'week':
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          matchesDate = briefDate >= weekAgo;
+          break;
+        case 'month':
+          const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          matchesDate = briefDate >= monthAgo;
+          break;
+      }
+    }
+    
+    return matchesSearch && matchesStatus && matchesDate;
   });
 
   const getStatusBadge = (status: string) => {
@@ -92,7 +116,7 @@ export default function Briefs() {
           </p>
         </div>
         <Button 
-          onClick={() => navigate('/briefs/new')}
+          onClick={() => setShowNewBriefModal(true)}
           className="bg-accent hover:bg-accent/90 text-accent-foreground font-inter"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -111,18 +135,31 @@ export default function Briefs() {
           />
         </div>
         
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 border border-input bg-background rounded-md text-sm font-inter"
-        >
-          <option value="all">All Status</option>
-          <option value="draft">Draft</option>
-          <option value="sent">Sent</option>
-          <option value="in_progress">In Progress</option>
-          <option value="completed">Completed</option>
-          <option value="archived">Archived</option>
-        </select>
+        <div className="flex gap-2">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-2 border border-input bg-background rounded-md text-sm font-inter"
+          >
+            <option value="all">All Status</option>
+            <option value="draft">Draft</option>
+            <option value="sent">Sent</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="archived">Archived</option>
+          </select>
+          
+          <select
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="px-3 py-2 border border-input bg-background rounded-md text-sm font-inter"
+          >
+            <option value="all">All Dates</option>
+            <option value="today">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+          </select>
+        </div>
       </div>
 
       {loading ? (
@@ -142,9 +179,9 @@ export default function Briefs() {
                 : 'Create your first brief to get started with team insights'
               }
             </p>
-            {!searchTerm && statusFilter === 'all' && (
+            {!searchTerm && statusFilter === 'all' && dateFilter === 'all' && (
               <Button 
-                onClick={() => navigate('/briefs/new')}
+                onClick={() => setShowNewBriefModal(true)}
                 className="bg-accent hover:bg-accent/90 text-accent-foreground font-inter"
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -194,6 +231,12 @@ export default function Briefs() {
           ))}
         </div>
       )}
+      
+      <NewBriefModal 
+        open={showNewBriefModal}
+        onOpenChange={setShowNewBriefModal}
+        onSuccess={fetchBriefs}
+      />
     </div>
   );
 }

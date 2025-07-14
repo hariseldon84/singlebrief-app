@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Briefs from "./pages/Briefs";
 import Teams from "./pages/Teams";
 import Templates from "./pages/Templates";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="/briefs" element={<ProtectedRoute><Briefs /></ProtectedRoute>} />
             <Route path="/teams" element={<ProtectedRoute><Teams /></ProtectedRoute>} />
             <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
