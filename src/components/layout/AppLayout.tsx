@@ -33,6 +33,23 @@ export function AppLayout({ children }: AppLayoutProps) {
     };
 
     fetchProfile();
+    
+    // Listen for profile updates
+    const channel = supabase
+      .channel('profile-changes')
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'profiles',
+        filter: `user_id=eq.${user?.id}`
+      }, (payload) => {
+        setProfile(payload.new);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   return (

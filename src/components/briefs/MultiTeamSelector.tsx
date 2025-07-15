@@ -83,6 +83,77 @@ export function MultiTeamSelector({
       
       <TabsContent value="teams" className="space-y-4">
         <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label>Select Teams & Members</Label>
+            <Button type="button" onClick={addManualMember} size="sm" variant="outline">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Manual Entry
+            </Button>
+          </div>
+          
+          {manualMembers.map((member, index) => (
+            <Card key={`manual-${index}`}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-medium text-sm">Manual Entry {index + 1}</span>
+                  <Button
+                    type="button"
+                    onClick={() => removeManualMember(index)}
+                    size="sm"
+                    variant="outline"
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Full Name</Label>
+                    <Input
+                      value={member.name}
+                      onChange={(e) => updateManualMember(index, 'name', e.target.value)}
+                      placeholder="John Doe"
+                      className="text-sm"
+                    />
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <Label className="text-xs">Email</Label>
+                    <Input
+                      type="email"
+                      value={member.email}
+                      onChange={(e) => updateManualMember(index, 'email', e.target.value)}
+                      placeholder="john@company.com"
+                      className="text-sm"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <Label className="text-xs">Department</Label>
+                    <Input
+                      value={member.department}
+                      onChange={(e) => updateManualMember(index, 'department', e.target.value)}
+                      placeholder="Engineering"
+                      className="text-sm"
+                    />
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <Label className="text-xs">Topic/Expertise</Label>
+                    <Input
+                      value={member.topic}
+                      onChange={(e) => updateManualMember(index, 'topic', e.target.value)}
+                      placeholder="Backend Development"
+                      className="text-sm"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        
           {teams.map((team) => {
             const isTeamSelected = selectedTeams.includes(team.id);
             const teamMembers = getTeamMembers(team);

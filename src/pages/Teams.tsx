@@ -254,7 +254,7 @@ export default function Teams() {
               New Team
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
             <DialogHeader>
               <DialogTitle className="font-sora">
                 {editingTeam ? 'Edit Team' : 'Create New Team'}
@@ -266,6 +266,7 @@ export default function Teams() {
                 }
               </DialogDescription>
             </DialogHeader>
+            <div className="overflow-y-auto">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name" className="font-inter">Team Name</Label>
@@ -337,6 +338,7 @@ export default function Teams() {
                 </Button>
               </div>
             </form>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
@@ -466,17 +468,23 @@ export default function Teams() {
             <Card key={team.id}>
               <CardHeader>
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3">
-                    <Users className="h-5 w-5 text-accent" />
-                    <div>
-                      <CardTitle className="font-sora">{team.name}</CardTitle>
-                      {team.description && (
-                        <CardDescription className="font-inter mt-1">
-                          {team.description}
-                        </CardDescription>
-                      )}
+                    <div className="flex items-center space-x-3">
+                      <Users className="h-5 w-5 text-accent" />
+                      <div>
+                        <CardTitle className="font-sora">{team.name}</CardTitle>
+                        {team.description && (
+                          <CardDescription className="font-inter mt-1">
+                            {team.description}
+                          </CardDescription>
+                        )}
+                        <div className="text-sm text-muted-foreground mt-1">
+                          {team.member_details && team.member_details.length > 0 
+                            ? `${team.member_details.length} members`
+                            : `${team.members.length} members`
+                          }
+                        </div>
+                      </div>
                     </div>
-                  </div>
                   <div className="flex space-x-2">
                     <Button
                       variant="outline"
