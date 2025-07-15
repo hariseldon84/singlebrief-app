@@ -26,6 +26,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           .eq('user_id', user.id)
           .single();
         
+        console.log('Fetched profile:', data); // Debug log
         setProfile(data);
       } catch (error) {
         console.error('Error fetching profile:', error);
@@ -34,18 +35,21 @@ export function AppLayout({ children }: AppLayoutProps) {
 
     fetchProfile();
     
-    // Listen for profile updates
+    // Listen for profile updates with better error handling
     const channel = supabase
-      .channel('profile-changes')
+      .channel('profile-updates')
       .on('postgres_changes', { 
         event: 'UPDATE', 
         schema: 'public', 
         table: 'profiles',
         filter: `user_id=eq.${user?.id}`
       }, (payload) => {
+        console.log('Profile updated:', payload.new); // Debug log
         setProfile(payload.new);
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Subscription status:', status); // Debug log
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -61,12 +65,6 @@ export function AppLayout({ children }: AppLayoutProps) {
           <header className="h-12 flex items-center justify-between border-b bg-background px-4">
             <div className="flex items-center">
               <SidebarTrigger className="mr-2" />
-              <img 
-                src="/lovable-uploads/6ec88067-36bd-45e8-8647-bd485fb92622.png" 
-                alt="SingleBrief" 
-                className="h-8 cursor-pointer"
-                onClick={() => navigate('/dashboard')}
-              />
             </div>
             
             <div className="flex items-center space-x-3">

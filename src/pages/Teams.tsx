@@ -321,7 +321,7 @@ export default function Teams() {
                 </TabsContent>
               </Tabs>
               
-              <div className="flex justify-end space-x-2">
+              <div className="flex justify-end space-x-2 pt-4 border-t">
                 <Button 
                   type="button" 
                   variant="outline" 
@@ -508,7 +508,12 @@ export default function Teams() {
               <CardContent>
                 <div className="flex items-center space-x-2 text-sm text-muted-foreground font-inter">
                   <UserCheck className="h-4 w-4" />
-                  <span>{team.members.length} members</span>
+                  <span>
+                    {team.member_details && team.member_details.length > 0 
+                      ? `${team.member_details.length} members`
+                      : `${team.members.length} members`
+                    }
+                  </span>
                 </div>
                 <div className="mt-2 space-y-2">
                   {team.member_details && team.member_details.length > 0 ? (
