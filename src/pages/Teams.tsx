@@ -465,7 +465,11 @@ export default function Teams() {
       ) : (
         <div className="grid gap-4">
           {filteredTeams.map((team) => (
-            <Card key={team.id}>
+            <Card 
+              key={team.id}
+              className="hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => handleEdit(team)}
+            >
               <CardHeader>
                 <div className="flex items-start justify-between">
                     <div className="flex items-center space-x-3">
@@ -489,7 +493,10 @@ export default function Teams() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleEdit(team)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(team);
+                      }}
                       className="font-inter"
                     >
                       <Edit className="h-4 w-4" />
@@ -497,7 +504,10 @@ export default function Teams() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDelete(team.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(team.id);
+                      }}
                       className="font-inter text-destructive hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />

@@ -131,7 +131,6 @@ export default function Settings() {
     setLoading(true);
     try {
       const updateData = {
-        user_id: user.id,
         name: formData.name,
         email: formData.email,
         avatar_url: formData.avatar_url,
@@ -140,7 +139,8 @@ export default function Settings() {
 
       const { error } = await supabase
         .from('profiles')
-        .upsert(updateData);
+        .update(updateData)
+        .eq('user_id', user.id);
 
       if (error) throw error;
 
@@ -331,6 +331,44 @@ export default function Settings() {
               className="w-full justify-start font-inter"
             >
               Setup Two-Factor Authentication
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-destructive">
+          <CardHeader>
+            <CardTitle className="font-sora text-destructive">Danger Zone</CardTitle>
+            <CardDescription className="font-inter">
+              Irreversible and destructive actions
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button 
+              variant="outline"
+              onClick={() => {
+                if (confirm('Are you sure you want to sign out?')) {
+                  supabase.auth.signOut();
+                }
+              }}
+              className="w-full justify-start font-inter"
+            >
+              Sign Out
+            </Button>
+            <Separator />
+            <Button 
+              variant="destructive"
+              onClick={() => {
+                if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+                  // Handle account deletion
+                  toast({
+                    title: "Account deletion requested",
+                    description: "Please contact support to complete account deletion.",
+                  });
+                }
+              }}
+              className="w-full justify-start font-inter"
+            >
+              Delete Account
             </Button>
           </CardContent>
         </Card>

@@ -174,7 +174,9 @@ export function BriefResponsesView({ briefId, open, onOpenChange }: BriefRespons
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Recipient</TableHead>
+                        <TableHead>Full Name</TableHead>
+                        <TableHead>Team</TableHead>
+                        <TableHead>Designation</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Sent On</TableHead>
                         <TableHead>Summary of Response</TableHead>
@@ -184,7 +186,11 @@ export function BriefResponsesView({ briefId, open, onOpenChange }: BriefRespons
                     <TableBody>
                       {responses.map((response) => (
                         <TableRow key={response.id}>
-                          <TableCell className="font-medium">{response.recipient_email}</TableCell>
+                          <TableCell className="font-medium">
+                            {response.recipient_email.split('@')[0].replace(/[._-]/g, ' ')}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">-</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">-</TableCell>
                           <TableCell>{getStatusBadge(response.status)}</TableCell>
                           <TableCell className="text-sm">{formatDate(response.started_at)}</TableCell>
                           <TableCell className="max-w-xs">

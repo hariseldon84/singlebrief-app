@@ -40,8 +40,9 @@ export function BriefDetailModal({ brief, open, onOpenChange, onDeleted }: Brief
     const configs = {
       draft: { label: 'Draft', variant: 'secondary' as const },
       sent: { label: 'Sent', variant: 'default' as const },
-      in_progress: { label: 'In Progress', variant: 'default' as const },
+      active: { label: 'Active', variant: 'default' as const },
       completed: { label: 'Completed', variant: 'default' as const },
+      delayed: { label: 'Delayed', variant: 'destructive' as const },
       archived: { label: 'Archived', variant: 'secondary' as const },
     };
     
@@ -49,7 +50,33 @@ export function BriefDetailModal({ brief, open, onOpenChange, onDeleted }: Brief
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  const handleDelete = async () => {
+  const handleSend = async () => {
+    try {
+      const { error } = await supabase
+        .from('briefs')
+        .update({ status: 'sent' })
+        .eq('id', brief.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Brief sent',
+        description: 'The brief has been sent to all recipients.',
+      });
+
+      onDeleted(); // Refresh the briefs list
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error sending brief:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to send the brief. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleArchive = async () => {
     setIsDeleting(true);
     try {
       // Call edge function to send cancellation emails
@@ -63,29 +90,29 @@ export function BriefDetailModal({ brief, open, onOpenChange, onDeleted }: Brief
 
       if (emailError) {
         console.error('Error sending cancellation emails:', emailError);
-        // Continue with deletion even if email fails
+        // Continue with archiving even if email fails
       }
 
-      // Delete the brief
-      const { error: deleteError } = await supabase
+      // Archive the brief instead of deleting
+      const { error: archiveError } = await supabase
         .from('briefs')
-        .delete()
+        .update({ status: 'archived' })
         .eq('id', brief.id);
 
-      if (deleteError) throw deleteError;
+      if (archiveError) throw archiveError;
 
       toast({
-        title: 'Brief deleted',
-        description: 'The brief has been deleted and team members have been notified.',
+        title: 'Brief archived',
+        description: 'The brief has been archived and team members have been notified.',
       });
 
       onDeleted();
       onOpenChange(false);
     } catch (error) {
-      console.error('Error deleting brief:', error);
+      console.error('Error archiving brief:', error);
       toast({
         title: 'Error',
-        description: 'Failed to delete the brief. Please try again.',
+        description: 'Failed to archive the brief. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -194,8 +221,18 @@ export function BriefDetailModal({ brief, open, onOpenChange, onDeleted }: Brief
           <Separator />
 
           {/* Actions */}
-          <div className="flex justify-between">
-            <Button
+          <div className="flex gap-3">
+            {brief.status === 'draft' && (
+              <Button 
+                onClick={handleSend}
+                className="bg-accent hover:bg-accent/90 text-accent-foreground font-inter"
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                Send Brief
+              </Button>
+            )}
+            
+            <Button 
               variant="outline"
               onClick={() => setResponsesViewOpen(true)}
               className="font-inter"
@@ -208,25 +245,25 @@ export function BriefDetailModal({ brief, open, onOpenChange, onDeleted }: Brief
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" className="font-inter">
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Brief
+                  Archive Brief
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle className="font-sora">Delete Brief</AlertDialogTitle>
+                  <AlertDialogTitle className="font-sora">Archive Brief</AlertDialogTitle>
                   <AlertDialogDescription className="font-inter">
-                    Are you sure you want to delete "{brief.title}"? This action cannot be undone.
+                    Are you sure you want to archive "{brief.title}"? This will move it to archived status.
                     All team members will be automatically notified that this brief has been cancelled.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel className="font-inter">Cancel</AlertDialogCancel>
                   <AlertDialogAction 
-                    onClick={handleDelete}
+                    onClick={handleArchive}
                     disabled={isDeleting}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-inter"
                   >
-                    {isDeleting ? 'Deleting...' : 'Delete Brief'}
+                    {isDeleting ? 'Archiving...' : 'Archive Brief'}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>

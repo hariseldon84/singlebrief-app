@@ -85,7 +85,11 @@ export default function Briefs() {
     
     let matchesStatus = true;
     if (statusFilter === 'active') {
-      matchesStatus = brief.status === 'in_progress' || brief.status === 'sent';
+      matchesStatus = brief.status === 'active';
+    } else if (statusFilter === 'delayed') {
+      const deadline = brief.deadline ? new Date(brief.deadline) : null;
+      const now = new Date();
+      matchesStatus = deadline ? deadline < now && brief.status !== 'completed' : false;
     } else if (statusFilter !== 'all') {
       matchesStatus = brief.status === statusFilter;
     }
@@ -113,11 +117,20 @@ export default function Briefs() {
     return matchesSearch && matchesStatus && matchesDate;
   });
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, deadline?: string) => {
+    // Check if delayed
+    if (deadline && status !== 'completed') {
+      const deadlineDate = new Date(deadline);
+      const now = new Date();
+      if (deadlineDate < now) {
+        return <Badge variant="destructive">Delayed</Badge>;
+      }
+    }
+
     const configs = {
       draft: { label: 'Draft', variant: 'secondary' as const },
       sent: { label: 'Sent', variant: 'default' as const },
-      in_progress: { label: 'In Progress', variant: 'default' as const },
+      active: { label: 'Active', variant: 'default' as const },
       completed: { label: 'Completed', variant: 'default' as const },
       archived: { label: 'Archived', variant: 'secondary' as const },
     };
@@ -126,11 +139,20 @@ export default function Briefs() {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: string, deadline?: string) => {
+    // Check if delayed first
+    if (deadline && status !== 'completed') {
+      const deadlineDate = new Date(deadline);
+      const now = new Date();
+      if (deadlineDate < now) {
+        return <Clock className="h-4 w-4 text-red-600" />;
+      }
+    }
+
     switch (status) {
       case 'completed':
         return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'in_progress':
+      case 'active':
       case 'sent':
         return <Clock className="h-4 w-4 text-blue-600" />;
       case 'archived':
@@ -178,9 +200,9 @@ export default function Briefs() {
             <option value="all">All Status</option>
             <option value="draft">Draft</option>
             <option value="sent">Sent</option>
-            <option value="in_progress">In Progress</option>
-            <option value="active">Active (In Progress + Sent)</option>
+            <option value="active">Active</option>
             <option value="completed">Completed</option>
+            <option value="delayed">Delayed</option>
             <option value="archived">Archived</option>
           </select>
           
@@ -239,7 +261,7 @@ export default function Briefs() {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
-                    {getStatusIcon(brief.status)}
+                    {getStatusIcon(brief.status, brief.deadline)}
                     <div>
                       <CardTitle className="font-sora text-lg">{brief.title}</CardTitle>
                       <CardDescription className="font-inter">
@@ -250,7 +272,7 @@ export default function Briefs() {
                       </CardDescription>
                     </div>
                   </div>
-                  {getStatusBadge(brief.status)}
+                  {getStatusBadge(brief.status, brief.deadline)}
                 </div>
               </CardHeader>
               <CardContent>

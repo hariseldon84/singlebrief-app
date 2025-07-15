@@ -83,9 +83,9 @@ export function CreateTemplateModal({ open, onOpenChange, onSuccess }: CreateTem
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
-          <DialogTitle className="font-sora">Create New Template</DialogTitle>
+          <DialogTitle className="font-sora">Fork System Template</DialogTitle>
           <DialogDescription className="font-inter">
-            Create a reusable template for your briefs
+            Create a copy of this system template that you can customize
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -135,7 +135,7 @@ export function CreateTemplateModal({ open, onOpenChange, onSuccess }: CreateTem
               disabled={loading}
               className="bg-accent hover:bg-accent/90 text-accent-foreground font-inter"
             >
-              {loading ? 'Creating...' : 'Create Template'}
+              {loading ? 'Forking...' : 'Fork Template'}
             </Button>
           </DialogFooter>
         </form>
