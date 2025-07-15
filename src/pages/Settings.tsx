@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Upload, Camera } from 'lucide-react';
+import { Upload } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -20,6 +21,7 @@ export default function Settings() {
   const [uploading, setUploading] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [show2FA, setShow2FA] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -50,15 +52,27 @@ export default function Settings() {
 
       if (data) {
         setProfile(data);
+        
+        // Handle notification_preferences properly
+        let notificationPrefs = {
+          weekly_summary: false,
+          response_alerts: true,
+          deadline_reminders: true,
+        };
+        
+        if (data.notification_preferences && typeof data.notification_preferences === 'object') {
+          notificationPrefs = {
+            weekly_summary: Boolean(data.notification_preferences.weekly_summary),
+            response_alerts: Boolean(data.notification_preferences.response_alerts),
+            deadline_reminders: Boolean(data.notification_preferences.deadline_reminders),
+          };
+        }
+        
         setFormData({
           name: data.name || '',
           email: data.email || user?.email || '',
           avatar_url: data.avatar_url || '',
-          notification_preferences: data.notification_preferences || {
-            weekly_summary: false,
-            response_alerts: true,
-            deadline_reminders: true,
-          },
+          notification_preferences: notificationPrefs,
         });
       }
     } catch (error) {
@@ -138,6 +152,11 @@ export default function Settings() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handle2FASuccess = () => {
+    setShow2FA(false);
+    fetchProfile();
   };
 
   return (
@@ -299,7 +318,13 @@ export default function Settings() {
               Change Password
             </Button>
             <Separator />
-            <TwoFactorSetup />
+            <Button 
+              variant="outline"
+              onClick={() => setShow2FA(true)}
+              className="w-full justify-start font-inter"
+            >
+              Setup Two-Factor Authentication
+            </Button>
           </CardContent>
         </Card>
       </form>
@@ -307,6 +332,12 @@ export default function Settings() {
       <ChangePasswordModal
         open={showChangePassword}
         onOpenChange={setShowChangePassword}
+      />
+
+      <TwoFactorSetup
+        open={show2FA}
+        onOpenChange={setShow2FA}
+        onSuccess={handle2FASuccess}
       />
     </div>
   );
