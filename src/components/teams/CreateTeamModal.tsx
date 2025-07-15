@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,7 +47,7 @@ export function CreateTeamModal({ open, onOpenChange, onSuccess }: CreateTeamMod
         name: formData.name,
         description: formData.description,
         members: activeTab === 'simple' ? formData.members : formData.memberDetails.map(m => m.email),
-        member_details: activeTab === 'detailed' ? formData.memberDetails : []
+        member_details: activeTab === 'detailed' ? (formData.memberDetails as any) : []
       };
 
       const { error } = await supabase
