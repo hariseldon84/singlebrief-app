@@ -11,12 +11,18 @@ import { Plus, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { MemberDetailsForm } from './MemberDetailsForm';
 
 interface CreateTeamModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+}
+
+interface DetailedMember {
+  name: string;
+  email: string;
+  designation: string;
+  topics: string[];
 }
 
 export function CreateTeamModal({ open, onOpenChange, onSuccess }: CreateTeamModalProps) {
@@ -28,7 +34,7 @@ export function CreateTeamModal({ open, onOpenChange, onSuccess }: CreateTeamMod
     name: '',
     description: '',
     members: [] as string[],
-    memberDetails: [] as Array<{ name: string; email: string; role?: string; department?: string }>
+    memberDetails: [] as DetailedMember[]
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -101,11 +107,11 @@ export function CreateTeamModal({ open, onOpenChange, onSuccess }: CreateTeamMod
   const addDetailedMember = () => {
     setFormData(prev => ({
       ...prev,
-      memberDetails: [...prev.memberDetails, { name: '', email: '', role: '', department: '' }]
+      memberDetails: [...prev.memberDetails, { name: '', email: '', designation: '', topics: [] }]
     }));
   };
 
-  const updateDetailedMember = (index: number, field: string, value: string) => {
+  const updateDetailedMember = (index: number, field: keyof DetailedMember, value: string | string[]) => {
     setFormData(prev => ({
       ...prev,
       memberDetails: prev.memberDetails.map((member, i) => 
@@ -119,6 +125,11 @@ export function CreateTeamModal({ open, onOpenChange, onSuccess }: CreateTeamMod
       ...prev,
       memberDetails: prev.memberDetails.filter((_, i) => i !== index)
     }));
+  };
+
+  const updateTopics = (index: number, topicsString: string) => {
+    const topics = topicsString.split(',').map(t => t.trim()).filter(t => t.length > 0);
+    updateDetailedMember(index, 'topics', topics);
   };
 
   return (
@@ -178,7 +189,7 @@ export function CreateTeamModal({ open, onOpenChange, onSuccess }: CreateTeamMod
                       </Button>
                     </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="max-h-96 overflow-y-auto">
                     {formData.memberDetails.length === 0 ? (
                       <p className="text-center text-muted-foreground font-inter py-8">
                         No members added yet. Click "Add Member" to start.
@@ -186,12 +197,64 @@ export function CreateTeamModal({ open, onOpenChange, onSuccess }: CreateTeamMod
                     ) : (
                       <div className="space-y-4">
                         {formData.memberDetails.map((member, index) => (
-                          <MemberDetailsForm
-                            key={index}
-                            member={member}
-                            onUpdate={(field, value) => updateDetailedMember(index, field, value)}
-                            onRemove={() => removeDetailedMember(index)}
-                          />
+                          <div key={index} className="p-4 border rounded-lg space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium text-sm">Member {index + 1}</span>
+                              <Button
+                                type="button"
+                                onClick={() => removeDetailedMember(index)}
+                                size="sm"
+                                variant="outline"
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs">Full Name</Label>
+                                <Input
+                                  value={member.name}
+                                  onChange={(e) => updateDetailedMember(index, 'name', e.target.value)}
+                                  placeholder="John Doe"
+                                  className="text-sm"
+                                />
+                              </div>
+                              
+                              <div className="space-y-1">
+                                <Label className="text-xs">Email</Label>
+                                <Input
+                                  type="email"
+                                  value={member.email}
+                                  onChange={(e) => updateDetailedMember(index, 'email', e.target.value)}
+                                  placeholder="john@company.com"
+                                  className="text-sm"
+                                  required
+                                />
+                              </div>
+                              
+                              <div className="space-y-1">
+                                <Label className="text-xs">Designation</Label>
+                                <Input
+                                  value={member.designation}
+                                  onChange={(e) => updateDetailedMember(index, 'designation', e.target.value)}
+                                  placeholder="Senior Developer"
+                                  className="text-sm"
+                                />
+                              </div>
+                              
+                              <div className="space-y-1">
+                                <Label className="text-xs">Topics/Expertise</Label>
+                                <Input
+                                  value={member.topics.join(', ')}
+                                  onChange={(e) => updateTopics(index, e.target.value)}
+                                  placeholder="Technology, Backend, API"
+                                  className="text-sm"
+                                />
+                              </div>
+                            </div>
+                          </div>
                         ))}
                       </div>
                     )}
@@ -215,7 +278,7 @@ export function CreateTeamModal({ open, onOpenChange, onSuccess }: CreateTeamMod
                       </Button>
                     </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="max-h-96 overflow-y-auto">
                     {formData.members.length === 0 ? (
                       <p className="text-center text-muted-foreground font-inter py-8">
                         No emails added yet. Click "Add Email" to start.
