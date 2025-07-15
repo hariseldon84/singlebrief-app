@@ -1,10 +1,11 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Filter, FileText, Clock, CheckCircle, Archive, Calendar } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { NewBriefModal } from '@/components/briefs/NewBriefModal';
@@ -24,6 +25,7 @@ interface Brief {
 
 export default function Briefs() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [briefs, setBriefs] = useState<Brief[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,6 +41,27 @@ export default function Briefs() {
       fetchBriefs();
     }
   }, [user]);
+
+  useEffect(() => {
+    // Handle filter from navigation state
+    if (location.state?.filter) {
+      const filterType = location.state.filter;
+      switch (filterType) {
+        case 'active':
+          setStatusFilter('in_progress');
+          break;
+        case 'completed':
+          setStatusFilter('completed');
+          break;
+        case 'all':
+        default:
+          setStatusFilter('all');
+          break;
+      }
+      // Clear the navigation state
+      navigate('/briefs', { replace: true });
+    }
+  }, [location.state, navigate]);
 
   const fetchBriefs = async () => {
     try {
@@ -59,7 +82,13 @@ export default function Briefs() {
 
   const filteredBriefs = briefs.filter(brief => {
     const matchesSearch = brief.title.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || brief.status === statusFilter;
+    
+    let matchesStatus = true;
+    if (statusFilter === 'active') {
+      matchesStatus = brief.status === 'in_progress' || brief.status === 'sent';
+    } else if (statusFilter !== 'all') {
+      matchesStatus = brief.status === statusFilter;
+    }
     
     let matchesDate = true;
     if (dateFilter !== 'all') {
@@ -150,6 +179,7 @@ export default function Briefs() {
             <option value="draft">Draft</option>
             <option value="sent">Sent</option>
             <option value="in_progress">In Progress</option>
+            <option value="active">Active (In Progress + Sent)</option>
             <option value="completed">Completed</option>
             <option value="archived">Archived</option>
           </select>

@@ -10,6 +10,7 @@ import { Plus, FileStack, Edit, Trash2, Crown, Globe, Search } from 'lucide-reac
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { TemplateEditModal } from '@/components/templates/TemplateEditModal';
 
 interface Template {
   id: string;
@@ -27,7 +28,8 @@ export default function Templates() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     name: '',
@@ -60,43 +62,24 @@ export default function Templates() {
     e.preventDefault();
     
     try {
-      if (editingTemplate) {
-        const { error } = await supabase
-          .from('brief_templates')
-          .update({
-            name: formData.name,
-            description: formData.description,
-            prompt: formData.prompt,
-          })
-          .eq('id', editingTemplate.id);
-
-        if (error) throw error;
-        
-        toast({
-          title: "Template updated",
-          description: "Your template has been updated successfully.",
+      const { error } = await supabase
+        .from('brief_templates')
+        .insert({
+          user_id: user?.id,
+          name: formData.name,
+          description: formData.description,
+          prompt: formData.prompt,
         });
-      } else {
-        const { error } = await supabase
-          .from('brief_templates')
-          .insert({
-            user_id: user?.id,
-            name: formData.name,
-            description: formData.description,
-            prompt: formData.prompt,
-          });
 
-        if (error) throw error;
-        
-        toast({
-          title: "Template created",
-          description: "Your new template has been created successfully.",
-        });
-      }
+      if (error) throw error;
+      
+      toast({
+        title: "Template created",
+        description: "Your new template has been created successfully.",
+      });
 
       setFormData({ name: '', description: '', prompt: '' });
       setIsCreateDialogOpen(false);
-      setEditingTemplate(null);
       fetchTemplates();
     } catch (error: any) {
       toast({
@@ -107,25 +90,9 @@ export default function Templates() {
     }
   };
 
-  const handleEdit = (template: Template) => {
-    if (template.is_system) {
-      // For system templates, create a copy
-      setEditingTemplate(null);
-      setFormData({
-        name: `${template.name} (Copy)`,
-        description: template.description || '',
-        prompt: template.prompt,
-      });
-    } else {
-      // For user templates, edit directly
-      setEditingTemplate(template);
-      setFormData({
-        name: template.name,
-        description: template.description || '',
-        prompt: template.prompt,
-      });
-    }
-    setIsCreateDialogOpen(true);
+  const handleTemplateClick = (template: Template) => {
+    setSelectedTemplate(template);
+    setIsEditModalOpen(true);
   };
 
   const handleDelete = async (templateId: string) => {
@@ -156,7 +123,6 @@ export default function Templates() {
 
   const resetForm = () => {
     setFormData({ name: '', description: '', prompt: '' });
-    setEditingTemplate(null);
   };
 
   const filteredTemplates = templates.filter(template => 
@@ -189,14 +155,9 @@ export default function Templates() {
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle className="font-sora">
-                {editingTemplate ? 'Edit Template' : 'Create New Template'}
-              </DialogTitle>
+              <DialogTitle className="font-sora">Create New Template</DialogTitle>
               <DialogDescription className="font-inter">
-                {editingTemplate 
-                  ? 'Update your template details and prompt.'
-                  : 'Create a new template to reuse for future briefs.'
-                }
+                Create a new template to reuse for future briefs.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -251,7 +212,7 @@ export default function Templates() {
                   type="submit"
                   className="bg-accent hover:bg-accent/90 text-accent-foreground font-inter"
                 >
-                  {editingTemplate ? 'Update Template' : 'Create Template'}
+                  Create Template
                 </Button>
               </div>
             </form>
@@ -284,7 +245,11 @@ export default function Templates() {
             </div>
             <div className="grid gap-4">
               {systemTemplates.map((template) => (
-                <Card key={template.id}>
+                <Card 
+                  key={template.id} 
+                  className="cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => handleTemplateClick(template)}
+                >
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-3">
@@ -303,15 +268,6 @@ export default function Templates() {
                           <Crown className="h-3 w-3 mr-1" />
                           System
                         </Badge>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(template)}
-                          className="font-inter"
-                          title="Copy system template"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
                       </div>
                     </div>
                   </CardHeader>
@@ -339,87 +295,26 @@ export default function Templates() {
                   <p className="text-muted-foreground font-inter mb-4">
                     Create your first custom template to reuse for future briefs
                   </p>
-                  <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button 
-                        onClick={resetForm}
-                        className="bg-accent hover:bg-accent/90 text-accent-foreground font-inter"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create First Template
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-2xl">
-                      <DialogHeader>
-                        <DialogTitle className="font-sora">Create New Template</DialogTitle>
-                        <DialogDescription className="font-inter">
-                          Create a new template to reuse for future briefs.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="name" className="font-inter">Template Name</Label>
-                          <Input
-                            id="name"
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            required
-                            className="font-inter"
-                            placeholder="e.g., Weekly Check-in, Project Review"
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="description" className="font-inter">Description (Optional)</Label>
-                          <Input
-                            id="description"
-                            value={formData.description}
-                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                            className="font-inter"
-                            placeholder="Brief description of when to use this template"
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="prompt" className="font-inter">Prompt</Label>
-                          <Textarea
-                            id="prompt"
-                            value={formData.prompt}
-                            onChange={(e) => setFormData({ ...formData, prompt: e.target.value })}
-                            required
-                            className="font-inter min-h-32"
-                            placeholder="Write the question or prompt that will be used to guide the AI conversation with team members..."
-                          />
-                          <p className="text-sm text-muted-foreground font-inter">
-                            This will be the main question the AI asks team members during their conversation.
-                          </p>
-                        </div>
-                        
-                        <div className="flex justify-end space-x-2">
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            onClick={() => setIsCreateDialogOpen(false)}
-                            className="font-inter"
-                          >
-                            Cancel
-                          </Button>
-                          <Button 
-                            type="submit"
-                            className="bg-accent hover:bg-accent/90 text-accent-foreground font-inter"
-                          >
-                            Create Template
-                          </Button>
-                        </div>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
+                  <Button 
+                    onClick={() => {
+                      resetForm();
+                      setIsCreateDialogOpen(true);
+                    }}
+                    className="bg-accent hover:bg-accent/90 text-accent-foreground font-inter"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create First Template
+                  </Button>
                 </CardContent>
               </Card>
             ) : (
               <div className="grid gap-4">
                 {userTemplates.map((template) => (
-                  <Card key={template.id}>
+                  <Card 
+                    key={template.id}
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => handleTemplateClick(template)}
+                  >
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div className="flex items-center space-x-3">
@@ -437,15 +332,10 @@ export default function Templates() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleEdit(template)}
-                            className="font-inter"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDelete(template.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(template.id);
+                            }}
                             className="font-inter text-destructive hover:text-destructive"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -465,6 +355,13 @@ export default function Templates() {
           </div>
         </div>
       )}
+
+      <TemplateEditModal
+        template={selectedTemplate}
+        open={isEditModalOpen}
+        onOpenChange={setIsEditModalOpen}
+        onSuccess={fetchTemplates}
+      />
     </div>
   );
 }
