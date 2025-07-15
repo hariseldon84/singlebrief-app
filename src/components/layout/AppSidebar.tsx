@@ -56,12 +56,12 @@ export function AppSidebar() {
     >
       <SidebarHeader className="p-4">
         {!isCollapsed && (
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center">
-              <span className="text-accent-foreground font-sora font-bold text-sm">SB</span>
-            </div>
-            <span className="font-sora font-semibold text-lg">SingleBrief</span>
-          </div>
+          <img 
+            src="/lovable-uploads/fde4dba0-e467-43d1-990c-73108418a2e5.png" 
+            alt="SingleBrief" 
+            className="h-8 cursor-pointer"
+            onClick={() => navigate('/')}
+          />
         )}
       </SidebarHeader>
 
