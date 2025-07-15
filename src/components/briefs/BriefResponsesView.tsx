@@ -176,9 +176,9 @@ export function BriefResponsesView({ briefId, open, onOpenChange }: BriefRespons
                       <TableRow>
                         <TableHead>Recipient</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Started</TableHead>
-                        <TableHead>Completed</TableHead>
+                        <TableHead>Sent On</TableHead>
                         <TableHead>Summary of Response</TableHead>
+                        <TableHead>View Transcript</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -187,24 +187,25 @@ export function BriefResponsesView({ briefId, open, onOpenChange }: BriefRespons
                           <TableCell className="font-medium">{response.recipient_email}</TableCell>
                           <TableCell>{getStatusBadge(response.status)}</TableCell>
                           <TableCell className="text-sm">{formatDate(response.started_at)}</TableCell>
-                          <TableCell className="text-sm">{formatDate(response.completed_at)}</TableCell>
                           <TableCell className="max-w-xs">
-                            <div className="space-y-2">
-                              <p className="text-sm text-muted-foreground">
-                                {generateResponseSummary(response)}
-                              </p>
-                              {response.status === 'completed' && (
-                                <Button
-                                  size="sm"
-                                  variant="link"
-                                  onClick={() => viewChatTranscript(response)}
-                                  className="h-auto p-0 text-xs"
-                                >
-                                  <Eye className="h-3 w-3 mr-1" />
-                                  View Detailed Transcript
-                                </Button>
-                              )}
-                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {generateResponseSummary(response)}
+                            </p>
+                          </TableCell>
+                          <TableCell>
+                            {response.status === 'completed' ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => viewChatTranscript(response)}
+                                className="text-xs"
+                              >
+                                <Eye className="h-3 w-3 mr-1" />
+                                View Transcript
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Not available</span>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}

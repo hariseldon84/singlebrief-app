@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useLocation, NavLink, useNavigate } from "react-router-dom";
 import { 
@@ -51,7 +50,8 @@ export function AppSidebar() {
     isActive ? "bg-accent text-accent-foreground font-medium" : "hover:bg-accent/50";
 
   const handleNewBrief = () => {
-    navigate('/briefs/new');
+    // Trigger the new brief modal by dispatching a custom event
+    window.dispatchEvent(new CustomEvent('openNewBriefModal'));
   };
 
   const handleProfileClick = () => {

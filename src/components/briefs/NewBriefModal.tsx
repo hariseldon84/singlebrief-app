@@ -52,6 +52,7 @@ export function NewBriefModal({ open, onOpenChange, onSuccess }: NewBriefModalPr
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [sendingLoading, setSendingLoading] = useState(false);
   const [teams, setTeams] = useState<Team[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [formData, setFormData] = useState({
@@ -72,6 +73,16 @@ export function NewBriefModal({ open, onOpenChange, onSuccess }: NewBriefModalPr
       fetchTeamsAndTemplates();
     }
   }, [open, user]);
+
+  // Add event listener for sidebar new brief button
+  useEffect(() => {
+    const handleOpenModal = () => {
+      onOpenChange(true);
+    };
+
+    window.addEventListener('openNewBriefModal', handleOpenModal);
+    return () => window.removeEventListener('openNewBriefModal', handleOpenModal);
+  }, [onOpenChange]);
 
   const fetchTeamsAndTemplates = async () => {
     try {
@@ -110,10 +121,7 @@ export function NewBriefModal({ open, onOpenChange, onSuccess }: NewBriefModalPr
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
+  const createBrief = async (sendImmediately = false) => {
     try {
       // Get recipients from multiple sources
       let recipients: string[] = [];
@@ -148,7 +156,7 @@ export function NewBriefModal({ open, onOpenChange, onSuccess }: NewBriefModalPr
           description: "Please select team members or enter email addresses.",
           variant: "destructive",
         });
-        return;
+        return false;
       }
 
       // Create the brief
@@ -161,7 +169,7 @@ export function NewBriefModal({ open, onOpenChange, onSuccess }: NewBriefModalPr
           recipients,
           total_recipients: recipients.length,
           deadline: formData.deadline?.toISOString(),
-          status: 'draft',
+          status: sendImmediately ? 'sent' : 'draft',
         })
         .select()
         .single();
@@ -181,36 +189,65 @@ export function NewBriefModal({ open, onOpenChange, onSuccess }: NewBriefModalPr
 
       if (responsesError) throw responsesError;
 
-      toast({
-        title: "Brief created",
-        description: "Your brief has been created successfully.",
-      });
-
-      // Reset form
-      setFormData({
-        title: '',
-        prompt: '',
-        selectedTeam: '',
-        customEmails: '',
-        constraints: '',
-        deadline: undefined,
-        selectedTemplate: '',
-      });
-      setSelectedTeams([]);
-      setSelectedMembers([]);
-      setManualMembers([]);
-
-      onOpenChange(false);
-      onSuccess?.();
+      return true;
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
+      return false;
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const success = await createBrief(false);
+    
+    if (success) {
+      toast({
+        title: "Brief created",
+        description: "Your brief has been saved as a draft.",
+      });
+      resetForm();
+    }
+    
+    setLoading(false);
+  };
+
+  const handleCreateAndSend = async () => {
+    setSendingLoading(true);
+
+    const success = await createBrief(true);
+    
+    if (success) {
+      toast({
+        title: "Brief created and sent",
+        description: "Your brief has been created and sent to recipients.",
+      });
+      resetForm();
+    }
+    
+    setSendingLoading(false);
+  };
+
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      prompt: '',
+      selectedTeam: '',
+      customEmails: '',
+      constraints: '',
+      deadline: undefined,
+      selectedTemplate: '',
+    });
+    setSelectedTeams([]);
+    setSelectedMembers([]);
+    setManualMembers([]);
+    onOpenChange(false);
+    onSuccess?.();
   };
 
   const handleTeamSelect = (teamId: string, selected: boolean) => {
@@ -389,9 +426,17 @@ export function NewBriefModal({ open, onOpenChange, onSuccess }: NewBriefModalPr
             <Button 
               type="submit"
               disabled={loading}
-              className="bg-accent hover:bg-accent/90 text-accent-foreground font-inter"
+              className="bg-muted hover:bg-muted/90 text-muted-foreground font-inter"
             >
               {loading ? 'Creating...' : 'Create Brief'}
+            </Button>
+            <Button 
+              type="button"
+              onClick={handleCreateAndSend}
+              disabled={sendingLoading}
+              className="bg-accent hover:bg-accent/90 text-accent-foreground font-inter"
+            >
+              {sendingLoading ? 'Sending...' : 'Create & Send Brief'}
             </Button>
           </div>
         </form>

@@ -1,88 +1,138 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { Upload, Shield, Trash2, Key } from "lucide-react";
-import { ChangePasswordModal } from "@/components/settings/ChangePasswordModal";
-import { TwoFactorSetup } from "@/components/settings/TwoFactorSetup";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-
-interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  avatar_url?: string;
-  notification_preferences?: {
-    weekly_summary: boolean;
-    response_alerts: boolean;
-    deadline_reminders: boolean;
-  };
-  two_factor_enabled?: boolean;
-}
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Upload, Camera } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { ChangePasswordModal } from '@/components/settings/ChangePasswordModal';
+import { TwoFactorSetup } from '@/components/settings/TwoFactorSetup';
 
 export default function Settings() {
-  const { user, signOut } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [formData, setFormData] = useState({ name: "", email: "" });
-  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
-  const [twoFactorSetupOpen, setTwoFactorSetupOpen] = useState(false);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarUploading, setAvatarUploading] = useState(false);
+  const { user } = useAuth();
   const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    avatar_url: '',
+    notification_preferences: {
+      weekly_summary: false,
+      response_alerts: true,
+      deadline_reminders: true,
+    },
+  });
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
 
   const fetchProfile = async () => {
-    if (!user) return;
-
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', user?.id)
         .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+
+      if (data) {
+        setProfile(data);
+        setFormData({
+          name: data.name || '',
+          email: data.email || user?.email || '',
+          avatar_url: data.avatar_url || '',
+          notification_preferences: data.notification_preferences || {
+            weekly_summary: false,
+            response_alerts: true,
+            deadline_reminders: true,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
+  };
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      setFormData(prev => ({ ...prev, avatar_url: publicUrl }));
+
+      toast({
+        title: "Avatar uploaded",
+        description: "Your profile picture has been uploaded successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    setLoading(true);
+    try {
+      const updateData = {
+        user_id: user.id,
+        name: formData.name,
+        email: formData.email,
+        avatar_url: formData.avatar_url,
+        notification_preferences: formData.notification_preferences,
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .upsert(updateData);
 
       if (error) throw error;
 
-      const notificationPrefs = data.notification_preferences as any;
-      const profileData: UserProfile = {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        avatar_url: data.avatar_url,
-        two_factor_enabled: data.two_factor_enabled || false,
-        notification_preferences: (notificationPrefs && typeof notificationPrefs === 'object') ? 
-          notificationPrefs : {
-            weekly_summary: false,
-            response_alerts: true,
-            deadline_reminders: true
-          }
-      };
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been updated successfully.",
+      });
 
-      setProfile(profileData);
-      setFormData({ name: profileData.name, email: profileData.email });
+      fetchProfile();
     } catch (error: any) {
-      console.error('Error fetching profile:', error);
       toast({
         title: "Error",
-        description: "Failed to load profile",
+        description: error.message,
         variant: "destructive",
       });
     } finally {
@@ -90,457 +140,173 @@ export default function Settings() {
     }
   };
 
-  useEffect(() => {
-    fetchProfile();
-  }, [user]);
-
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !profile) return;
-
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          name: formData.name,
-          email: formData.email,
-        })
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      setProfile({ ...profile, name: formData.name, email: formData.email });
-      toast({
-        title: "Success",
-        description: "Profile updated successfully",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update profile",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleAvatarUpload = async () => {
-    if (!avatarFile || !user) return;
-
-    setAvatarUploading(true);
-    try {
-      const fileExt = avatarFile.name.split('.').pop();
-      const fileName = `${user.id}/avatar.${fileExt}`;
-
-      // Remove old avatar if exists
-      const { error: removeError } = await supabase.storage
-        .from('avatars')
-        .remove([fileName]);
-
-      // Upload new avatar
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(fileName, avatarFile, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(fileName);
-
-      // Add timestamp to force refresh
-      const avatarUrlWithTimestamp = `${publicUrl}?t=${Date.now()}`;
-
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: avatarUrlWithTimestamp })
-        .eq('user_id', user.id);
-
-      if (updateError) throw updateError;
-
-      setProfile(prev => prev ? { ...prev, avatar_url: avatarUrlWithTimestamp } : null);
-      setAvatarFile(null);
-      
-      toast({
-        title: "Success",
-        description: "Avatar updated successfully",
-      });
-    } catch (error: any) {
-      console.error('Avatar upload error:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update avatar",
-        variant: "destructive",
-      });
-    } finally {
-      setAvatarUploading(false);
-    }
-  };
-
-  const handleNotificationChange = async (key: string, value: boolean) => {
-    if (!user || !profile) return;
-
-    try {
-      const updatedPreferences = {
-        ...profile.notification_preferences,
-        [key]: value
-      };
-
-      const { error } = await supabase
-        .from('profiles')
-        .update({ notification_preferences: updatedPreferences })
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      setProfile({
-        ...profile,
-        notification_preferences: updatedPreferences
-      });
-
-      toast({
-        title: "Success",
-        description: "Notification preference updated",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to update notification preference",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDeleteAccount = async () => {
-    if (!user) return;
-
-    try {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('user_id', user.id);
-
-      if (profileError) throw profileError;
-
-      await signOut();
-      
-      toast({
-        title: "Account Deleted",
-        description: "Your account has been successfully deleted",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete account",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const disable2FA = async () => {
-    if (!user) return;
-
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          two_factor_enabled: false,
-          two_factor_secret: null
-        })
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      setProfile(prev => prev ? { ...prev, two_factor_enabled: false } : null);
-      
-      toast({
-        title: "Success",
-        description: "Two-factor authentication disabled",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to disable 2FA",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleSignOut = async () => {
-    await signOut();
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto py-8 max-w-4xl">
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Settings</h1>
-          <p className="text-muted-foreground">Manage your account settings and preferences</p>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-sora text-3xl font-bold">Settings</h1>
+        <p className="text-muted-foreground font-inter mt-2">
+          Manage your account settings and preferences
+        </p>
+      </div>
 
-        {/* Profile Information */}
+      <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Profile Information</CardTitle>
-            <CardDescription>Update your personal information and avatar</CardDescription>
+            <CardTitle className="font-sora">Profile Information</CardTitle>
+            <CardDescription className="font-inter">
+              Update your personal information and avatar
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Avatar Section */}
             <div className="flex items-center space-x-4">
               <Avatar className="h-20 w-20">
-                <AvatarImage src={profile?.avatar_url} alt="Avatar" />
+                <AvatarImage src={formData.avatar_url} alt="Profile" />
                 <AvatarFallback className="text-lg">
-                  {profile?.name?.charAt(0)?.toUpperCase() || "U"}
+                  {formData.name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || "U"}
                 </AvatarFallback>
               </Avatar>
               <div className="space-y-2">
+                <Label htmlFor="avatar" className="sr-only">Choose avatar</Label>
                 <div className="flex items-center space-x-2">
-                  <Input
+                  <input
+                    id="avatar"
                     type="file"
                     accept="image/*"
-                    onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
-                    className="w-auto"
+                    onChange={handleAvatarUpload}
+                    className="hidden"
                   />
                   <Button
+                    type="button"
+                    variant="outline"
                     size="sm"
-                    onClick={handleAvatarUpload}
-                    disabled={!avatarFile || avatarUploading}
+                    onClick={() => document.getElementById('avatar')?.click()}
+                    disabled={uploading}
+                    className="font-inter"
                   >
                     <Upload className="h-4 w-4 mr-2" />
-                    {avatarUploading ? "Uploading..." : "Upload"}
+                    {uploading ? 'Uploading...' : 'Upload'}
                   </Button>
                 </div>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground font-inter">
                   Choose a new avatar image (JPG, PNG, GIF)
                 </p>
               </div>
             </div>
 
-            <Separator />
-
-            {/* Profile Form */}
-            <form onSubmit={handleUpdateProfile} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input
-                    id="name"
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Enter your full name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="Enter your email"
-                  />
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="name" className="font-inter">Full Name</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  className="font-inter"
+                  placeholder="Enter your full name"
+                />
               </div>
-              <Button type="submit" disabled={saving}>
-                {saving ? "Saving..." : "Save Changes"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
 
-        {/* Account Security */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Account Security</CardTitle>
-            <CardDescription>Manage your password and security settings</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium">Password</div>
-                <div className="text-sm text-muted-foreground">
-                  Change your account password
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="email" className="font-inter">Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  className="font-inter"
+                  placeholder="Enter your email"
+                />
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setChangePasswordOpen(true)}
+            </div>
+
+            <div className="flex justify-end">
+              <Button 
+                type="submit"
+                disabled={loading}
+                className="bg-accent hover:bg-accent/90 text-accent-foreground font-inter"
               >
-                <Key className="h-4 w-4 mr-2" />
-                Change Password
+                {loading ? 'Saving...' : 'Save Changes'}
               </Button>
-            </div>
-
-            <Separator />
-
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium">Two-Factor Authentication</div>
-                <div className="text-sm text-muted-foreground">
-                  {profile?.two_factor_enabled 
-                    ? "2FA is currently enabled" 
-                    : "Add an extra layer of security to your account"
-                  }
-                </div>
-              </div>
-              {profile?.two_factor_enabled ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={disable2FA}
-                >
-                  <Shield className="h-4 w-4 mr-2" />
-                  Disable 2FA
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setTwoFactorSetupOpen(true)}
-                >
-                  <Shield className="h-4 w-4 mr-2" />
-                  Enable 2FA
-                </Button>
-              )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Notifications */}
         <Card>
           <CardHeader>
-            <CardTitle>Notification Preferences</CardTitle>
-            <CardDescription>Choose what notifications you want to receive</CardDescription>
+            <CardTitle className="font-sora">Notification Preferences</CardTitle>
+            <CardDescription className="font-inter">
+              Customize your notification settings
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium">Weekly Summary</div>
-                <div className="text-sm text-muted-foreground">
-                  Receive a weekly summary of your briefs and responses
-                </div>
-              </div>
-              <Switch
-                checked={profile?.notification_preferences?.weekly_summary || false}
-                onCheckedChange={(checked) => handleNotificationChange('weekly_summary', checked)}
+              <Label htmlFor="weekly_summary" className="font-inter">Weekly Summary</Label>
+              <Switch 
+                id="weekly_summary"
+                checked={formData.notification_preferences.weekly_summary}
+                onCheckedChange={(checked) => setFormData(prev => ({
+                  ...prev,
+                  notification_preferences: { ...prev.notification_preferences, weekly_summary: checked }
+                }))}
               />
             </div>
-
-            <Separator />
-
             <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium">Response Alerts</div>
-                <div className="text-sm text-muted-foreground">
-                  Get notified when someone responds to your briefs
-                </div>
-              </div>
-              <Switch
-                checked={profile?.notification_preferences?.response_alerts || false}
-                onCheckedChange={(checked) => handleNotificationChange('response_alerts', checked)}
+              <Label htmlFor="response_alerts" className="font-inter">Response Alerts</Label>
+              <Switch 
+                id="response_alerts"
+                checked={formData.notification_preferences.response_alerts}
+                onCheckedChange={(checked) => setFormData(prev => ({
+                  ...prev,
+                  notification_preferences: { ...prev.notification_preferences, response_alerts: checked }
+                }))}
               />
             </div>
-
-            <Separator />
-
             <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium">Deadline Reminders</div>
-                <div className="text-sm text-muted-foreground">
-                  Receive reminders before brief deadlines
-                </div>
-              </div>
-              <Switch
-                checked={profile?.notification_preferences?.deadline_reminders || false}
-                onCheckedChange={(checked) => handleNotificationChange('deadline_reminders', checked)}
+              <Label htmlFor="deadline_reminders" className="font-inter">Deadline Reminders</Label>
+              <Switch 
+                id="deadline_reminders"
+                checked={formData.notification_preferences.deadline_reminders}
+                onCheckedChange={(checked) => setFormData(prev => ({
+                  ...prev,
+                  notification_preferences: { ...prev.notification_preferences, deadline_reminders: checked }
+                }))}
               />
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Danger Zone */}
-        <Card className="border-destructive">
-          <CardHeader>
-            <CardTitle className="text-destructive">Danger Zone</CardTitle>
-            <CardDescription>Irreversible and destructive actions</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium">Sign Out</div>
-                <div className="text-sm text-muted-foreground">
-                  Sign out of your account on this device
-                </div>
-              </div>
-              <Button variant="outline" onClick={handleSignOut}>
-                Sign Out
+            <div className="flex justify-end">
+              <Button 
+                type="submit"
+                disabled={loading}
+                className="bg-accent hover:bg-accent/90 text-accent-foreground font-inter"
+              >
+                {loading ? 'Saving...' : 'Save Changes'}
               </Button>
             </div>
-
-            <Separator />
-
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium text-destructive">Delete Account</div>
-                <div className="text-sm text-muted-foreground">
-                  Permanently delete your account and all associated data
-                </div>
-              </div>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Account
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete your account
-                      and remove all your data from our servers including all briefs, responses,
-                      and team information.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleDeleteAccount}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      Yes, delete my account
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
           </CardContent>
         </Card>
-      </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-sora">Security</CardTitle>
+            <CardDescription className="font-inter">
+              Manage your account security settings
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button 
+              variant="outline"
+              onClick={() => setShowChangePassword(true)}
+              className="w-full justify-start font-inter"
+            >
+              Change Password
+            </Button>
+            <Separator />
+            <TwoFactorSetup />
+          </CardContent>
+        </Card>
+      </form>
 
       <ChangePasswordModal
-        open={changePasswordOpen}
-        onOpenChange={setChangePasswordOpen}
-      />
-
-      <TwoFactorSetup
-        open={twoFactorSetupOpen}
-        onOpenChange={setTwoFactorSetupOpen}
-        onSuccess={() => {
-          setProfile(prev => prev ? { ...prev, two_factor_enabled: true } : null);
-        }}
+        open={showChangePassword}
+        onOpenChange={setShowChangePassword}
       />
     </div>
   );
