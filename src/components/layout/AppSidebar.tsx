@@ -57,9 +57,9 @@ export function AppSidebar() {
       <SidebarHeader className="p-4">
         {!isCollapsed && (
           <img 
-            src="/lovable-uploads/fde4dba0-e467-43d1-990c-73108418a2e5.png" 
+            src="/lovable-uploads/783fa552-5042-44f6-84a0-87a3908e6300.png" 
             alt="SingleBrief" 
-            className="h-8 cursor-pointer"
+            className="max-w-full cursor-pointer"
             onClick={() => navigate('/')}
           />
         )}
