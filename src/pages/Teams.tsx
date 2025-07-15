@@ -5,16 +5,26 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Users, Edit, Trash2, UserCheck, Search, Calendar } from 'lucide-react';
+import { MemberDetailsForm } from '@/components/teams/MemberDetailsForm';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+
+interface TeamMember {
+  name: string;
+  email: string;
+  designation: string;
+  topics: string[];
+}
 
 interface Team {
   id: string;
   name: string;
   description?: string;
   members: string[];
+  member_details: TeamMember[];
   created_at: string;
 }
 
@@ -32,6 +42,7 @@ export default function Teams() {
     description: '',
     members: '',
   });
+  const [memberDetails, setMemberDetails] = useState<TeamMember[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -48,7 +59,16 @@ export default function Teams() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setTeams(data || []);
+      
+      // Process teams data to handle member_details JSON
+      const processedTeams = (data || []).map(team => ({
+        ...team,
+        member_details: Array.isArray(team.member_details) 
+          ? (team.member_details as unknown as TeamMember[])
+          : []
+      }));
+      
+      setTeams(processedTeams);
     } catch (error) {
       console.error('Error fetching teams:', error);
     } finally {
@@ -64,6 +84,16 @@ export default function Teams() {
       .map(email => email.trim())
       .filter(email => email.length > 0);
 
+    // Use member details if available, otherwise create from emails
+    const memberDetailsToSave = memberDetails.length > 0 
+      ? memberDetails 
+      : membersArray.map(email => ({
+          name: '',
+          email,
+          designation: '',
+          topics: []
+        }));
+
     try {
       if (editingTeam) {
         const { error } = await supabase
@@ -72,6 +102,7 @@ export default function Teams() {
             name: formData.name,
             description: formData.description,
             members: membersArray,
+            member_details: memberDetailsToSave,
           })
           .eq('id', editingTeam.id);
 
@@ -89,6 +120,7 @@ export default function Teams() {
             name: formData.name,
             description: formData.description,
             members: membersArray,
+            member_details: memberDetailsToSave,
           });
 
         if (error) throw error;
@@ -100,6 +132,7 @@ export default function Teams() {
       }
 
       setFormData({ name: '', description: '', members: '' });
+      setMemberDetails([]);
       setIsCreateDialogOpen(false);
       setEditingTeam(null);
       fetchTeams();
@@ -119,6 +152,7 @@ export default function Teams() {
       description: team.description || '',
       members: team.members.join(', '),
     });
+    setMemberDetails(team.member_details || []);
     setIsCreateDialogOpen(true);
   };
 
@@ -150,13 +184,33 @@ export default function Teams() {
 
   const resetForm = () => {
     setFormData({ name: '', description: '', members: '' });
+    setMemberDetails([]);
     setEditingTeam(null);
+  };
+
+  const addMemberDetail = () => {
+    setMemberDetails([...memberDetails, { name: '', email: '', designation: '', topics: [] }]);
+  };
+
+  const updateMemberDetail = (index: number, field: keyof TeamMember, value: string | string[]) => {
+    const updated = [...memberDetails];
+    updated[index] = { ...updated[index], [field]: value };
+    setMemberDetails(updated);
+  };
+
+  const removeMemberDetail = (index: number) => {
+    setMemberDetails(memberDetails.filter((_, i) => i !== index));
   };
 
   const filteredTeams = teams.filter(team => {
     const matchesSearch = 
       team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      team.members.some(email => email.toLowerCase().includes(searchTerm.toLowerCase()));
+      team.members.some(email => email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (team.member_details || []).some(member => 
+        member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.designation.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.topics.some(topic => topic.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
     
     let matchesDate = true;
     if (dateFilter !== 'all') {
@@ -236,20 +290,35 @@ export default function Teams() {
                 />
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="members" className="font-inter">Team Members</Label>
-                <Textarea
-                  id="members"
-                  value={formData.members}
-                  onChange={(e) => setFormData({ ...formData, members: e.target.value })}
-                  required
-                  className="font-inter"
-                  placeholder="Enter email addresses separated by commas&#10;e.g., john@company.com, jane@company.com"
-                />
-                <p className="text-sm text-muted-foreground font-inter">
-                  Separate email addresses with commas
-                </p>
-              </div>
+              <Tabs defaultValue="detailed" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="detailed">Detailed Members</TabsTrigger>
+                  <TabsTrigger value="simple">Simple Email List</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="detailed" className="space-y-4">
+                  <MemberDetailsForm 
+                    members={memberDetails}
+                    onUpdate={setMemberDetails}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="simple" className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="members" className="font-inter">Team Members</Label>
+                    <Textarea
+                      id="members"
+                      value={formData.members}
+                      onChange={(e) => setFormData({ ...formData, members: e.target.value })}
+                      className="font-inter"
+                      placeholder="Enter email addresses separated by commas&#10;e.g., john@company.com, jane@company.com"
+                    />
+                    <p className="text-sm text-muted-foreground font-inter">
+                      Separate email addresses with commas
+                    </p>
+                  </div>
+                </TabsContent>
+              </Tabs>
               
               <div className="flex justify-end space-x-2">
                 <Button 
@@ -433,19 +502,42 @@ export default function Teams() {
                   <UserCheck className="h-4 w-4" />
                   <span>{team.members.length} members</span>
                 </div>
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {team.members.slice(0, 3).map((email) => (
-                    <span
-                      key={email}
-                      className="inline-block bg-muted text-muted-foreground px-2 py-1 rounded text-xs font-inter"
-                    >
-                      {email}
-                    </span>
-                  ))}
-                  {team.members.length > 3 && (
-                    <span className="inline-block bg-muted text-muted-foreground px-2 py-1 rounded text-xs font-inter">
-                      +{team.members.length - 3} more
-                    </span>
+                <div className="mt-2 space-y-2">
+                  {team.member_details && team.member_details.length > 0 ? (
+                    <div className="space-y-1">
+                      {team.member_details.slice(0, 3).map((member, index) => (
+                        <div key={index} className="text-xs bg-muted p-2 rounded">
+                          <div className="font-medium">{member.name || member.email}</div>
+                          {member.designation && (
+                            <div className="text-muted-foreground">{member.designation}</div>
+                          )}
+                          {member.topics.length > 0 && (
+                            <div className="text-muted-foreground">Topics: {member.topics.join(', ')}</div>
+                          )}
+                        </div>
+                      ))}
+                      {team.member_details.length > 3 && (
+                        <div className="text-xs text-muted-foreground">
+                          +{team.member_details.length - 3} more members
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {team.members.slice(0, 3).map((email) => (
+                        <span
+                          key={email}
+                          className="inline-block bg-muted text-muted-foreground px-2 py-1 rounded text-xs font-inter"
+                        >
+                          {email}
+                        </span>
+                      ))}
+                      {team.members.length > 3 && (
+                        <span className="inline-block bg-muted text-muted-foreground px-2 py-1 rounded text-xs font-inter">
+                          +{team.members.length - 3} more
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
               </CardContent>

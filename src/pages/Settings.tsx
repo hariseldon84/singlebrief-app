@@ -153,6 +153,9 @@ export default function Settings() {
       setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : null);
       setAvatarFile(null);
       
+      // Force a page reload to update the header avatar
+      window.location.reload();
+      
       toast({
         title: "Success",
         description: "Avatar updated successfully",

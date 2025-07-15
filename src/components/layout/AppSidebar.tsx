@@ -5,7 +5,6 @@ import {
   Users, 
   FileStack, 
   Settings, 
-  LogOut,
   Plus,
   Home
 } from "lucide-react";
@@ -38,7 +37,6 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut } = useAuth();
   const currentPath = location.pathname;
 
   const isCollapsed = state === "collapsed";
@@ -50,10 +48,6 @@ export function AppSidebar() {
     navigate('/briefs/new');
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/auth');
-  };
 
   return (
     <Sidebar
@@ -101,17 +95,6 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
-        <Button
-          variant="ghost"
-          onClick={handleSignOut}
-          className="w-full justify-start text-muted-foreground hover:text-foreground"
-          size={isCollapsed ? "icon" : "default"}
-        >
-          <LogOut className="h-4 w-4" />
-          {!isCollapsed && <span className="ml-2 font-inter">Sign Out</span>}
-        </Button>
-      </SidebarFooter>
     </Sidebar>
   );
 }

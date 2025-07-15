@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Calendar, Clock, Users, Mail, Trash2, FileText } from 'lucide-react';
+import { Calendar, Clock, Users, Mail, Trash2, FileText, MessageSquare } from 'lucide-react';
+import { BriefResponsesView } from './BriefResponsesView';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -30,6 +31,7 @@ interface BriefDetailModalProps {
 
 export function BriefDetailModal({ brief, open, onOpenChange, onDeleted }: BriefDetailModalProps) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [responsesViewOpen, setResponsesViewOpen] = useState(false);
   const { toast } = useToast();
 
   if (!brief) return null;
@@ -192,7 +194,16 @@ export function BriefDetailModal({ brief, open, onOpenChange, onDeleted }: Brief
           <Separator />
 
           {/* Actions */}
-          <div className="flex justify-end">
+          <div className="flex justify-between">
+            <Button
+              variant="outline"
+              onClick={() => setResponsesViewOpen(true)}
+              className="font-inter"
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              View Responses & Summary
+            </Button>
+            
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" className="font-inter">
@@ -223,6 +234,15 @@ export function BriefDetailModal({ brief, open, onOpenChange, onDeleted }: Brief
           </div>
         </div>
       </DialogContent>
+      
+      {/* Responses View Modal */}
+      {brief && (
+        <BriefResponsesView
+          briefId={brief.id}
+          open={responsesViewOpen}
+          onOpenChange={setResponsesViewOpen}
+        />
+      )}
     </Dialog>
   );
 }

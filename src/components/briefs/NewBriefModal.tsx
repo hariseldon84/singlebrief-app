@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { MultiTeamSelector } from './MultiTeamSelector';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, Users } from 'lucide-react';
@@ -14,10 +15,25 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
+interface TeamMember {
+  name: string;
+  email: string;
+  designation: string;
+  topics: string[];
+}
+
 interface Team {
   id: string;
   name: string;
   members: string[];
+  member_details: TeamMember[];
+}
+
+interface ManualMember {
+  name: string;
+  email: string;
+  department: string;
+  topic: string;
 }
 
 interface Template {
@@ -47,6 +63,9 @@ export function NewBriefModal({ open, onOpenChange, onSuccess }: NewBriefModalPr
     deadline: undefined as Date | undefined,
     selectedTemplate: '',
   });
+  const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [manualMembers, setManualMembers] = useState<ManualMember[]>([]);
 
   useEffect(() => {
     if (open && user) {
@@ -57,14 +76,22 @@ export function NewBriefModal({ open, onOpenChange, onSuccess }: NewBriefModalPr
   const fetchTeamsAndTemplates = async () => {
     try {
       const [teamsResponse, templatesResponse] = await Promise.all([
-        supabase.from('teams').select('id, name, members').eq('user_id', user?.id),
+        supabase.from('teams').select('id, name, members, member_details').eq('user_id', user?.id),
         supabase.from('brief_templates').select('id, name, prompt').or(`user_id.eq.${user?.id},is_system.eq.true,is_public.eq.true`)
       ]);
 
       if (teamsResponse.error) throw teamsResponse.error;
       if (templatesResponse.error) throw templatesResponse.error;
 
-      setTeams(teamsResponse.data || []);
+      // Process teams data to handle member_details JSON
+      const processedTeams = (teamsResponse.data || []).map(team => ({
+        ...team,
+        member_details: Array.isArray(team.member_details) 
+          ? (team.member_details as unknown as TeamMember[])
+          : []
+      }));
+      
+      setTeams(processedTeams);
       setTemplates(templatesResponse.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -88,22 +115,37 @@ export function NewBriefModal({ open, onOpenChange, onSuccess }: NewBriefModalPr
     setLoading(true);
 
     try {
-      // Get recipients from selected team or custom emails
+      // Get recipients from multiple sources
       let recipients: string[] = [];
-      if (formData.selectedTeam) {
-        const team = teams.find(t => t.id === formData.selectedTeam);
-        recipients = team?.members || [];
-      } else if (formData.customEmails) {
+      
+      // From selected team members
+      if (selectedMembers.length > 0) {
+        recipients = [...recipients, ...selectedMembers];
+      }
+      
+      // From manual members
+      if (manualMembers.length > 0) {
+        const manualEmails = manualMembers
+          .map(member => member.email.trim())
+          .filter(email => email.length > 0);
+        recipients = [...recipients, ...manualEmails];
+      }
+      
+      // From custom emails (fallback)
+      if (recipients.length === 0 && formData.customEmails) {
         recipients = formData.customEmails
           .split(',')
           .map(email => email.trim())
           .filter(email => email.length > 0);
       }
 
+      // Remove duplicates
+      recipients = [...new Set(recipients)];
+
       if (recipients.length === 0) {
         toast({
           title: "Error",
-          description: "Please select a team or enter email addresses.",
+          description: "Please select team members or enter email addresses.",
           variant: "destructive",
         });
         return;
@@ -154,6 +196,9 @@ export function NewBriefModal({ open, onOpenChange, onSuccess }: NewBriefModalPr
         deadline: undefined,
         selectedTemplate: '',
       });
+      setSelectedTeams([]);
+      setSelectedMembers([]);
+      setManualMembers([]);
 
       onOpenChange(false);
       onSuccess?.();
@@ -165,6 +210,38 @@ export function NewBriefModal({ open, onOpenChange, onSuccess }: NewBriefModalPr
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTeamSelect = (teamId: string, selected: boolean) => {
+    if (selected) {
+      setSelectedTeams([...selectedTeams, teamId]);
+      // Auto-select all members of the team
+      const team = teams.find(t => t.id === teamId);
+      if (team) {
+        const teamEmails = team.member_details && team.member_details.length > 0
+          ? team.member_details.map(m => m.email)
+          : team.members;
+        setSelectedMembers([...new Set([...selectedMembers, ...teamEmails])]);
+      }
+    } else {
+      setSelectedTeams(selectedTeams.filter(id => id !== teamId));
+      // Deselect all members of the team
+      const team = teams.find(t => t.id === teamId);
+      if (team) {
+        const teamEmails = team.member_details && team.member_details.length > 0
+          ? team.member_details.map(m => m.email)
+          : team.members;
+        setSelectedMembers(selectedMembers.filter(email => !teamEmails.includes(email)));
+      }
+    }
+  };
+
+  const handleMemberToggle = (email: string, selected: boolean) => {
+    if (selected) {
+      setSelectedMembers([...selectedMembers, email]);
+    } else {
+      setSelectedMembers(selectedMembers.filter(e => e !== email));
     }
   };
 
@@ -226,43 +303,36 @@ export function NewBriefModal({ open, onOpenChange, onSuccess }: NewBriefModalPr
           <div className="space-y-4">
             <Label className="font-inter">Recipients</Label>
             
-            {/* Team Selection */}
-            <div className="space-y-2">
-              <Label className="font-inter text-sm font-normal">Select from Team</Label>
-              <Select 
-                value={formData.selectedTeam} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, selectedTeam: value, customEmails: '' }))}
-              >
-                <SelectTrigger className="font-inter">
-                  <SelectValue placeholder="Choose a team" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teams.map((team) => (
-                    <SelectItem key={team.id} value={team.id} className="font-inter">
-                      <div className="flex items-center space-x-2">
-                        <Users className="h-4 w-4" />
-                        <span>{team.name} ({team.members.length} members)</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="text-center text-sm text-muted-foreground font-inter">OR</div>
-
-            {/* Custom Emails */}
-            <div className="space-y-2">
-              <Label htmlFor="customEmails" className="font-inter text-sm font-normal">Enter Email Addresses</Label>
-              <Textarea
-                id="customEmails"
-                value={formData.customEmails}
-                onChange={(e) => setFormData(prev => ({ ...prev, customEmails: e.target.value, selectedTeam: '' }))}
-                className="font-inter"
-                placeholder="Enter email addresses separated by commas&#10;e.g., john@company.com, jane@company.com"
-                disabled={!!formData.selectedTeam}
-              />
-            </div>
+            <MultiTeamSelector
+              teams={teams}
+              selectedTeams={selectedTeams}
+              selectedMembers={selectedMembers}
+              manualMembers={manualMembers}
+              onTeamSelect={handleTeamSelect}
+              onMemberToggle={handleMemberToggle}
+              onManualMembersChange={setManualMembers}
+            />
+            
+            {/* Fallback: Custom Emails */}
+            {selectedMembers.length === 0 && manualMembers.length === 0 && (
+              <div className="space-y-2 border-t pt-4">
+                <Label htmlFor="customEmails" className="font-inter text-sm font-normal">Or Enter Email Addresses</Label>
+                <Textarea
+                  id="customEmails"
+                  value={formData.customEmails}
+                  onChange={(e) => setFormData(prev => ({ ...prev, customEmails: e.target.value }))}
+                  className="font-inter"
+                  placeholder="Enter email addresses separated by commas&#10;e.g., john@company.com, jane@company.com"
+                />
+              </div>
+            )}
+            
+            {/* Selected Recipients Summary */}
+            {(selectedMembers.length > 0 || manualMembers.length > 0) && (
+              <div className="text-sm text-muted-foreground">
+                {selectedMembers.length + manualMembers.length} recipient(s) selected
+              </div>
+            )}
           </div>
 
           {/* Constraints */}
