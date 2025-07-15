@@ -14,6 +14,12 @@ import { useToast } from '@/hooks/use-toast';
 import { ChangePasswordModal } from '@/components/settings/ChangePasswordModal';
 import { TwoFactorSetup } from '@/components/settings/TwoFactorSetup';
 
+type NotificationPreferences = {
+  weekly_summary: boolean;
+  response_alerts: boolean;
+  deadline_reminders: boolean;
+};
+
 export default function Settings() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -31,7 +37,7 @@ export default function Settings() {
       weekly_summary: false,
       response_alerts: true,
       deadline_reminders: true,
-    },
+    } as NotificationPreferences,
   });
 
   useEffect(() => {
@@ -53,18 +59,19 @@ export default function Settings() {
       if (data) {
         setProfile(data);
         
-        // Handle notification_preferences properly
-        let notificationPrefs = {
+        // Handle notification_preferences with proper type checking
+        let notificationPrefs: NotificationPreferences = {
           weekly_summary: false,
           response_alerts: true,
           deadline_reminders: true,
         };
         
-        if (data.notification_preferences && typeof data.notification_preferences === 'object') {
+        if (data.notification_preferences && typeof data.notification_preferences === 'object' && !Array.isArray(data.notification_preferences)) {
+          const prefs = data.notification_preferences as Record<string, any>;
           notificationPrefs = {
-            weekly_summary: Boolean(data.notification_preferences.weekly_summary),
-            response_alerts: Boolean(data.notification_preferences.response_alerts),
-            deadline_reminders: Boolean(data.notification_preferences.deadline_reminders),
+            weekly_summary: Boolean(prefs.weekly_summary),
+            response_alerts: Boolean(prefs.response_alerts),
+            deadline_reminders: Boolean(prefs.deadline_reminders),
           };
         }
         
