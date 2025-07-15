@@ -59,7 +59,7 @@ export function AppSidebar() {
           <img 
             src="/lovable-uploads/783fa552-5042-44f6-84a0-87a3908e6300.png" 
             alt="SingleBrief" 
-            className="max-w-full cursor-pointer"
+            className="h-8 w-auto cursor-pointer"
             onClick={() => navigate('/')}
           />
         )}
