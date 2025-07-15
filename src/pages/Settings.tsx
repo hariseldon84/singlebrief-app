@@ -79,6 +79,7 @@ export default function Settings() {
       setProfile(profileData);
       setFormData({ name: profileData.name, email: profileData.email });
     } catch (error: any) {
+      console.error('Error fetching profile:', error);
       toast({
         title: "Error",
         description: "Failed to load profile",
@@ -133,6 +134,12 @@ export default function Settings() {
       const fileExt = avatarFile.name.split('.').pop();
       const fileName = `${user.id}/avatar.${fileExt}`;
 
+      // Remove old avatar if exists
+      const { error: removeError } = await supabase.storage
+        .from('avatars')
+        .remove([fileName]);
+
+      // Upload new avatar
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(fileName, avatarFile, { upsert: true });
@@ -143,14 +150,17 @@ export default function Settings() {
         .from('avatars')
         .getPublicUrl(fileName);
 
+      // Add timestamp to force refresh
+      const avatarUrlWithTimestamp = `${publicUrl}?t=${Date.now()}`;
+
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ avatar_url: publicUrl })
+        .update({ avatar_url: avatarUrlWithTimestamp })
         .eq('user_id', user.id);
 
       if (updateError) throw updateError;
 
-      setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : null);
+      setProfile(prev => prev ? { ...prev, avatar_url: avatarUrlWithTimestamp } : null);
       setAvatarFile(null);
       
       toast({
@@ -158,6 +168,7 @@ export default function Settings() {
         description: "Avatar updated successfully",
       });
     } catch (error: any) {
+      console.error('Avatar upload error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to update avatar",
@@ -206,7 +217,6 @@ export default function Settings() {
     if (!user) return;
 
     try {
-      // First delete the profile
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
@@ -214,8 +224,6 @@ export default function Settings() {
 
       if (profileError) throw profileError;
 
-      // Then delete the auth user (this might require admin privileges)
-      // For now, we'll just sign out the user
       await signOut();
       
       toast({
